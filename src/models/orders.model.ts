@@ -1,12 +1,19 @@
-import { RowDataPacket } from 'mysql2';
-import Iproduct from '../interfaces/product.interface';
-import connection from './connection';
+import { Pool, RowDataPacket } from 'mysql2/promise';
+import IOrder from '../interfaces/order.interface';
 
-export default async (): Promise<Iproduct[]> => {
-  const [data] = await connection.execute<Iproduct[] & RowDataPacket[]>(`
-  SELECT o.id, o.user_id AS userId, JSON_ARRAYAGG(p.id) AS productsIds FROM Trybesmith.orders o
-  INNER JOIN Trybesmith.products p ON o.id = p.order_id
-  GROUP BY o.user_id, o.id;
-  `);
-  return data;
-};
+export default class OrdersModel {
+  public connection: Pool;
+
+  constructor(connection: Pool) {
+    this.connection = connection;
+  }
+
+  async getAll():Promise<IOrder[]> {
+    const [result] = await this.connection.execute<(IOrder & RowDataPacket)[]>(
+      `SELECT a.id, a.user_id as userId, JSON_ARRAYAGG(b.id) as productsIds FROM Trybesmith.orders a
+      INNER JOIN Trybesmith.products b on (a.id = b.order_id) 
+      GROUP BY a.id, a.user_id 
+      ORDER BY a.id`);
+    return result;
+  }
+}
